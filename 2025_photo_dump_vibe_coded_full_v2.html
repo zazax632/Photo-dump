@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2025 Photo Dump | Vibe Coded</title>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-surface-variant": "#ababab",
+            "surface-container-highest": "#262626",
+            "outline": "#757575",
+            "secondary-fixed": "#dac9ff",
+            "surface-container": "#191919",
+            "on-primary-container": "#005359",
+            "on-background": "#ffffff",
+            "surface": "#0e0e0e",
+            "on-primary": "#005d63",
+            "surface-bright": "#2c2c2c",
+            "surface-container-lowest": "#000000",
+            "error": "#ff716c",
+            "outline-variant": "#484848",
+            "surface-tint": "#8ff5ff",
+            "on-secondary": "#280067",
+            "secondary": "#ac8aff",
+            "primary-fixed-dim": "#00deec",
+            "surface-container-low": "#131313",
+            "primary-fixed": "#00eefc",
+            "primary": "#8ff5ff",
+            "on-tertiary": "#5e5f60",
+            "primary-container": "#00eefc",
+            "surface-container-high": "#1f1f1f",
+            "secondary-container": "#5516be",
+            "surface-dim": "#0e0e0e",
+            "on-surface": "#ffffff",
+            "background": "#0e0e0e",
+            "surface-variant": "#262626"
+          },
+          fontFamily: {
+            "headline": ["Space Grotesk"],
+            "body": ["Inter"],
+            "label": ["Space Grotesk"]
+          },
+          borderRadius: {"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},
+        },
+      },
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #0e0e0e; }
+    body { font-family: Inter, sans-serif; user-select: none; }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+      user-select: none;
+    }
+
+    .glass-panel {
+      background: rgba(20, 20, 25, 0.45);
+      backdrop-filter: blur(24px) saturate(1.4);
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .glass-panel-strong {
+      background: rgba(12, 12, 16, 0.55);
+      backdrop-filter: blur(28px) saturate(1.35);
+      -webkit-backdrop-filter: blur(28px) saturate(1.35);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .glow-blob {
+      position: fixed;
+      border-radius: 9999px;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+      animation: blobDrift 18s ease-in-out infinite alternate;
+    }
+    .glow-blob-cyan  { background: rgba(143, 245, 255, 0.05); width: 680px; height: 680px; top: 10%; left: 10%; }
+    .glow-blob-purple{ background: rgba(172, 138, 255, 0.045); width: 560px; height: 560px; bottom: 5%; right: 8%; animation-delay: -7s; }
+    .glow-blob-mid   { background: rgba(0, 222, 236, 0.028); width: 420px; height: 420px; top: 50%; left: 50%; transform: translate(-50%, -50%); animation-delay: -14s; }
+
+    @keyframes blobDrift {
+      0%   { transform: translate(0, 0) scale(1); }
+      33%  { transform: translate(30px, -20px) scale(1.04); }
+      66%  { transform: translate(-20px, 15px) scale(0.97); }
+      100% { transform: translate(10px, -30px) scale(1.02); }
+    }
+
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.028) 2px,
+        rgba(0,0,0,0.028) 4px
+      );
+    }
+
+    #three-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: grab;
+    }
+    #three-canvas:active { cursor: grabbing; }
+
+    #particle-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .corner-bracket {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-color: rgba(143,245,255,0.35);
+      border-style: solid;
+      pointer-events: none;
+    }
+    .corner-bracket.tl { top: 6px; left: 6px; border-width: 1.5px 0 0 1.5px; }
+    .corner-bracket.tr { top: 6px; right: 6px; border-width: 1.5px 1.5px 0 0; }
+    .corner-bracket.bl { bottom: 6px; left: 6px; border-width: 0 0 1.5px 1.5px; }
+    .corner-bracket.br { bottom: 6px; right: 6px; border-width: 0 1.5px 1.5px 0; }
+
+    .hud-shadow { box-shadow: 0 16px 48px rgba(143,245,255,0.12); }
+    .status-dot { animation: statusBlink 2s ease-in-out infinite; }
+    @keyframes statusBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    .core-glow {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(143,245,255,0.24) 0%, rgba(0,222,236,0.08) 48%, transparent 72%);
+      pointer-events: none;
+      filter: blur(20px);
+      animation: corePulse 3.5s ease-in-out infinite;
+      z-index: 2;
+    }
+    @keyframes corePulse {
+      0%,100% { transform: scale(1); opacity: 0.82; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    .icon-btn {
+      transition: opacity 0.25s, color 0.25s, transform 0.25s;
+    }
+    .icon-btn.active .mat-icon,
+    .icon-btn.active .icon-label {
+      color: #8ff5ff;
+      filter: drop-shadow(0 0 6px rgba(143,245,255,0.9));
+    }
+
+    .gesture-btn .tooltip { pointer-events: none; }
+    .fade-in-up { animation: fadeInUp 0.8s ease forwards; }
+    @keyframes fadeInUp {
+      from { opacity:0; transform: translateY(8px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    @keyframes latencyFlicker {
+      0%, 90%, 100% { opacity: 1; }
+      92% { opacity: 0.42; }
+      95% { opacity: 1; }
+      97% { opacity: 0.65; }
+    }
+    #latency-value { animation: latencyFlicker 4s ease infinite; }
+
+    .cam-top-line {
+      background: linear-gradient(90deg, transparent, rgba(143,245,255,0.55), transparent);
+    }
+
+    #pause-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: radial-gradient(ellipse at center, transparent 28%, rgba(0,0,0,0.58) 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #pause-vignette.active { opacity: 1; }
+
+    #start-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+    }
+
+    .safe-shadow {
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.06),
+        0 24px 80px rgba(0,0,0,0.55),
+        0 0 42px rgba(143,245,255,0.08);
+    }
+
+    .mini-chip {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .upload-input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .tiny-kbd {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.05);
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.35rem;
+      font-size: 0.72rem;
+      line-height: 1;
+    }
+  </style>
+</head>
+
+<body class="bg-surface text-on-surface font-body h-screen w-screen selection:bg-primary/30">
+  <div class="glow-blob glow-blob-cyan"></div>
+  <div class="glow-blob glow-blob-purple"></div>
+  <div class="glow-blob glow-blob-mid"></div>
+  <div class="scanlines"></div>
+  <canvas id="particle-canvas"></canvas>
+  <div id="pause-vignette"></div>
+
+  <!-- Start / Permission Overlay -->
+  <div id="start-overlay">
+    <div class="glass-panel-strong safe-shadow w-[min(92vw,720px)] rounded-3xl p-7 md:p-9 mx-4">
+      <div class="flex items-start justify-between gap-6 flex-col md:flex-row">
+        <div class="max-w-2xl">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#8ff5ff]"></div>
+            <span class="font-['Space_Grotesk'] text-[10px] tracking-[0.3em] uppercase text-white/45">Photo Sphere / MediaPipe / Three.js</span>
+          </div>
+          <h2 class="font-['Space_Grotesk'] text-3xl md:text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-300">
+            2025 Photo Dump
+          </h2>
+          <p class="mt-3 text-white/55 max-w-xl leading-relaxed">
+            Upload your year photos, enable camera tracking, then control the memory sphere with real hand gestures.
+          </p>
+
+          <div class="mt-5 flex flex-wrap gap-2 text-[10px] font-['Space_Grotesk'] uppercase tracking-[0.2em] text-white/35">
+            <span class="mini-chip px-3 py-2 rounded-full">Right pinch = zoom</span>
+            <span class="mini-chip px-3 py-2 rounded-full">Left pinch = rotate</span>
+            <span class="mini-chip px-3 py-2 rounded-full">Open palm = speed</span>
+            <span class="mini-chip px-3 py-2 rounded-full">Fist = pause</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 w-full md:w-[250px]">
+          <button id="btn-start" class="rounded-2xl px-4 py-3 bg-cyan-400/15 border border-cyan-300/20 text-cyan-200 font-['Space_Grotesk'] tracking-wide hover:bg-cyan-400/20 transition-colors">
+            Enable Camera & Tracking
+          </button>
+
+          <label class="relative rounded-2xl px-4 py-3 bg-white/5 border border-white/10 text-white/70 font-['Space_Grotesk'] tracking-wide hover:bg-white/8 transition-colors cursor-pointer text-center">
+            Upload 2025 Photos
+            <input id="photo-upload" class="upload-input" type="file" accept="image/*" multiple />
+          </label>
+
+          <div class="text-[10px] uppercase tracking-[0.28em] text-white/22 font-['Space_Grotesk'] leading-relaxed">
+            tip: works best in Chrome or Safari with camera permission
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 md:px-8 py-5 bg-transparent">
+    <div class="flex flex-col gap-0.5">
+      <h1 class="text-[22px] font-bold tracking-tighter font-['Space_Grotesk'] bg-gradient-to-r from-cyan-300 via-sky-200 to-purple-300 bg-clip-text text-transparent leading-none">
+        2025 Photo Dump
+      </h1>
+      <p class="font-['Space_Grotesk'] text-[9px] tracking-[0.22em] text-white/30 uppercase mt-0.5">
+        first time experimenting with realtime hand tracking and i’m obsessed!
+      </p>
+      <div class="mt-2 inline-flex items-center gap-2 self-start rounded-full px-3 py-1 mini-chip">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_#8ff5ff]"></span>
+        <span id="photo-count-badge" class="font-['Space_Grotesk'] text-[9px] tracking-[0.18em] uppercase text-white/45">14 photos loaded</span>
+      </div>
+    </div>
+
+    <div class="hidden md:flex items-center gap-2 font-['Space_Grotesk'] text-xs tracking-wide">
+      <a href="#" class="text-cyan-300 border-b border-cyan-300/40 pb-0.5 px-1">Gallery</a>
+      <a href="#" class="text-white/30 hover:text-white/70 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">vibe_check</a>
+      <a href="#" class="text-white/30 hover:text-white/70 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">Experiments</a>
+    </div>
+
+    <div class="flex items-center gap-1">
+      <button id="btn-camera" title="Camera" class="p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+        <span class="material-symbols-outlined text-[20px] text-white/40 group-hover:text-cyan-300 transition-colors">motion_sensor_active</span>
+      </button>
+      <button id="btn-settings" title="Settings" class="p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+        <span class="material-symbols-outlined text-[20px] text-white/40 group-hover:text-white/70 transition-colors">settings</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Left gesture rail -->
+  <aside class="fixed left-0 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-7 px-3.5 py-8 rounded-r-2xl glass-panel-strong"
+    style="box-shadow: 4px 0 32px rgba(0,240,255,0.07);">
+    <div class="icon-btn active flex flex-col items-center gap-1 cursor-pointer" data-mode="zoom">
+      <span class="mat-icon material-symbols-outlined text-[20px] text-cyan-300 drop-shadow-[0_0_7px_rgba(0,240,255,0.85)] transition-all">zoom_in</span>
+      <span class="icon-label font-['Space_Grotesk'] text-[8px] tracking-[0.22em] uppercase text-cyan-300">Zoom</span>
+    </div>
+    <div class="icon-btn flex flex-col items-center gap-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity" data-mode="rotate">
+      <span class="mat-icon material-symbols-outlined text-[20px] text-white/50 transition-all">sync</span>
+      <span class="icon-label font-['Space_Grotesk'] text-[8px] tracking-[0.22em] uppercase text-white/40">Rotate</span>
+    </div>
+    <div class="icon-btn flex flex-col items-center gap-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity" data-mode="speed">
+      <span class="mat-icon material-symbols-outlined text-[20px] text-white/50 transition-all">speed</span>
+      <span class="icon-label font-['Space_Grotesk'] text-[8px] tracking-[0.22em] uppercase text-white/40">Speed</span>
+    </div>
+    <div class="icon-btn flex flex-col items-center gap-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity" data-mode="hand">
+      <span class="mat-icon material-symbols-outlined text-[20px] text-white/50 transition-all">front_hand</span>
+      <span class="icon-label font-['Space_Grotesk'] text-[8px] tracking-[0.22em] uppercase text-white/40">Hand</span>
+    </div>
+
+    <div class="flex flex-col items-center gap-2 pt-4 border-t border-white/5">
+      <div class="w-1 h-1 rounded-full bg-cyan-400 status-dot shadow-[0_0_8px_#8ff5ff]"></div>
+      <span class="font-['Space_Grotesk'] text-[7px] tracking-[0.35em] text-white/20 uppercase"
+        style="writing-mode: vertical-rl; transform: rotate(180deg);">v1.0</span>
+    </div>
+  </aside>
+
+  <!-- Main 3D scene -->
+  <main class="fixed inset-0 z-10 flex items-center justify-center" id="sphere-stage">
+    <div class="core-glow pointer-events-none"></div>
+
+    <div class="absolute flex flex-col items-center gap-3 pointer-events-none" style="bottom: calc(50% - 280px);">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-px bg-gradient-to-r from-transparent to-cyan-300/40"></span>
+        <span class="font-['Space_Grotesk'] text-[10px] tracking-[0.55em] text-cyan-300/70 uppercase">Spatial View Active</span>
+        <span class="w-10 h-px bg-gradient-to-l from-transparent to-cyan-300/40"></span>
+      </div>
+    </div>
+
+    <div id="drag-hint" class="absolute pointer-events-none flex flex-col items-center gap-2 fade-in-up" style="top: calc(50% + 244px);">
+      <span class="material-symbols-outlined text-[18px] text-white/20">drag_pan</span>
+      <span class="font-['Space_Grotesk'] text-[9px] tracking-[0.3em] uppercase text-white/15">Drag to rotate · Scroll to zoom · Space to pause</span>
+    </div>
+
+    <canvas id="three-canvas"></canvas>
+  </main>
+
+  <!-- Right gesture hints -->
+  <div class="fixed right-10 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-5">
+    <div class="gesture-btn flex items-center gap-3 group justify-end">
+      <div class="tooltip flex flex-col items-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+        <span class="text-[11px] font-['Space_Grotesk'] text-white/80">Right hand pinch</span>
+        <span class="text-[9px] font-['Space_Grotesk'] text-white/30 uppercase tracking-widest">Zoom</span>
+      </div>
+      <div class="w-11 h-11 glass-panel rounded-full flex items-center justify-center text-cyan-300 transition-all group-hover:shadow-[0_0_16px_rgba(143,245,255,0.35)]">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">pinch</span>
+      </div>
+    </div>
+
+    <div class="gesture-btn flex items-center gap-3 group justify-end">
+      <div class="tooltip flex flex-col items-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+        <span class="text-[11px] font-['Space_Grotesk'] text-white/80">Left hand pinch</span>
+        <span class="text-[9px] font-['Space_Grotesk'] text-white/30 uppercase tracking-widest">Rotate</span>
+      </div>
+      <div class="w-11 h-11 glass-panel rounded-full flex items-center justify-center text-purple-300 transition-all group-hover:shadow-[0_0_16px_rgba(172,138,255,0.35)]">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+      </div>
+    </div>
+
+    <div class="gesture-btn flex items-center gap-3 group justify-end">
+      <div class="tooltip flex flex-col items-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+        <span class="text-[11px] font-['Space_Grotesk'] text-white/80">Open hand</span>
+        <span class="text-[9px] font-['Space_Grotesk'] text-white/30 uppercase tracking-widest">Speed up</span>
+      </div>
+      <div class="w-11 h-11 glass-panel rounded-full flex items-center justify-center text-white/30 transition-all group-hover:shadow-[0_0_16px_rgba(255,255,255,0.08)]">
+        <span class="material-symbols-outlined text-[18px]">speed</span>
+      </div>
+    </div>
+
+    <div class="gesture-btn flex items-center gap-3 group justify-end">
+      <div class="tooltip flex flex-col items-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+        <span class="text-[11px] font-['Space_Grotesk'] text-white/80">Fist gesture</span>
+        <span class="text-[9px] font-['Space_Grotesk'] text-white/30 uppercase tracking-widest">Pause</span>
+      </div>
+      <div id="pause-btn-right" class="w-11 h-11 glass-panel rounded-full flex items-center justify-center text-red-300 transition-all group-hover:shadow-[0_0_16px_rgba(255,113,108,0.3)] cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">pause_circle</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom-right camera panel -->
+  <div class="fixed bottom-14 right-8 z-50">
+    <div class="relative w-60 h-36 glass-panel rounded-2xl overflow-hidden group hud-shadow">
+      <div class="corner-bracket tl"></div>
+      <div class="corner-bracket tr"></div>
+      <div class="corner-bracket bl"></div>
+      <div class="corner-bracket br"></div>
+      <div class="cam-top-line absolute top-0 left-0 w-full h-px"></div>
+
+      <video id="webcam" class="absolute inset-0 w-full h-full object-cover opacity-0" autoplay playsinline muted></video>
+      <canvas id="cam-canvas" class="absolute inset-0 w-full h-full opacity-65 group-hover:opacity-80 transition-opacity duration-700"></canvas>
+      <canvas id="tracking-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+
+      <div class="absolute inset-0 bg-cyan-950/20 mix-blend-overlay pointer-events-none"></div>
+
+      <div class="absolute top-2.5 left-3 flex items-center gap-1.5">
+        <div class="w-1.5 h-1.5 rounded-full bg-cyan-300 status-dot shadow-[0_0_8px_#8ff5ff]"></div>
+        <span class="font-['Space_Grotesk'] text-[8px] uppercase tracking-[0.22em] text-white/75">User Active</span>
+      </div>
+
+      <div class="absolute bottom-2.5 right-2.5 flex items-center gap-2.5">
+        <div class="flex flex-col items-end gap-0">
+          <span class="font-['Space_Grotesk'] text-[7px] text-cyan-300/70 uppercase tracking-wide">latency</span>
+          <span id="latency-value" class="font-['Space_Grotesk'] text-[11px] text-white font-semibold leading-none"><span id="latency-num">14</span>ms</span>
+        </div>
+        <div class="w-7 h-7 rounded-lg bg-black/40 flex items-center justify-center border border-white/6">
+          <span class="material-symbols-outlined text-[14px] text-cyan-300">videocam</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-2 flex justify-end">
+      <span class="font-['Space_Grotesk'] text-[9px] text-white/20 tracking-tight uppercase italic">realtime environment mapping...</span>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="fixed bottom-0 w-full flex justify-between items-center px-6 md:px-10 py-5 z-50 pointer-events-none">
+    <span class="font-['Space_Grotesk'] text-[9px] text-white/20 uppercase tracking-widest">© 2025 Obsidian Lens Archive</span>
+    <div class="flex items-center gap-6 pointer-events-auto">
+      <label class="font-['Space_Grotesk'] text-[9px] text-white/15 hover:text-cyan-300 transition-colors uppercase tracking-widest cursor-pointer">
+        Upload
+        <input id="photo-upload-footer" class="upload-input" type="file" accept="image/*" multiple />
+      </label>
+      <a href="#" class="font-['Space_Grotesk'] text-[9px] text-white/15 hover:text-cyan-300 transition-colors uppercase tracking-widest">Privacy.Void</a>
+      <a href="#" class="font-['Space_Grotesk'] text-[9px] text-white/15 hover:text-cyan-300 transition-colors uppercase tracking-widest">Protocol</a>
+    </div>
+  </footer>
+
+  <script>
+    // ===== Utility =====
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+
+    function svgDataUrl(index) {
+      const hue = (index * 31) % 360;
+      const hue2 = (hue + 55) % 360;
+      const bg = `linear-gradient(135deg, hsl(${hue} 45% 14%), hsl(${hue2} 45% 10%))`;
+      const accent = `hsla(${(hue + 180) % 360}, 90%, 70%, 0.8)`;
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+          <defs>
+            <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="hsl(${hue} 52% 16%)"/>
+              <stop offset="100%" stop-color="hsl(${hue2} 52% 8%)"/>
+            </linearGradient>
+            <radialGradient id="r" cx="50%" cy="36%" r="60%">
+              <stop offset="0%" stop-color="hsla(${hue} 90% 76% / 0.65)"/>
+              <stop offset="45%" stop-color="hsla(${hue2} 90% 68% / 0.18)"/>
+              <stop offset="100%" stop-color="transparent"/>
+            </radialGradient>
+          </defs>
+          <rect width="1200" height="1200" fill="url(#g)"/>
+          <circle cx="600" cy="500" r="430" fill="url(#r)"/>
+          <g opacity="0.9">
+            <circle cx="260" cy="270" r="52" fill="hsla(${hue + 30} 90% 72% / 0.18)"/>
+            <circle cx="930" cy="300" r="88" fill="hsla(${hue2} 85% 70% / 0.12)"/>
+            <circle cx="860" cy="860" r="130" fill="hsla(${hue} 80% 68% / 0.10)"/>
+          </g>
+          <text x="82" y="1040" fill="rgba(255,255,255,0.76)" font-size="160" font-family="Space Grotesk, Inter, sans-serif" font-weight="700" letter-spacing="8">${String(index + 1).padStart(2, "0")}</text>
+          <text x="82" y="1100" fill="rgba(255,255,255,0.25)" font-size="38" font-family="Inter, sans-serif" letter-spacing="6">PHOTO DUMP</text>
+        </svg>
+      `;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
+
+    function makeDemoPhotos(count = 12) {
+      return Array.from({ length: count }, (_, i) => {
+        const mod = i % 4;
+        const aspect = [1, 1.25, 0.84, 1.42][mod];
+        return {
+          src: svgDataUrl(i),
+          title: `Memory ${String(i + 1).padStart(2, "0")}`,
+          kind: "demo",
+          aspect
+        };
+      });
+    }
+
+    function measureFileAspect(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const aspect = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1;
+          resolve({ aspect, width: img.naturalWidth, height: img.naturalHeight });
+        };
+        img.onerror = () => resolve({ aspect: 1, width: 1, height: 1 });
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // ===== State =====
+    const CONFIG = {
+      sphereRadius: 7.8,
+      baseSpeed: 0.0025,
+      fastSpeed: 0.0072,
+      zoomMin: 0.72,
+      zoomMax: 1.65,
+      zoomStep: 0.075
+    };
+
+    const state = {
+      rotX: 0.12,
+      rotY: 0,
+      velX: 0,
+      velY: CONFIG.baseSpeed,
+      targetVelY: CONFIG.baseSpeed,
+      targetZoom: 1,
+      zoom: 1,
+      paused: false,
+      fast: false,
+      dragging: false,
+      lastMouseX: 0,
+      lastMouseY: 0,
+      started: false,
+      userCount: 0
+    };
+
+    let userPhotos = [];
+    let photoData = makeDemoPhotos(14);
+
+    function syncPhotoBadge() {
+      const badge = document.getElementById("photo-count-badge");
+      if (!badge) return;
+      const count = photoData.length;
+      const uploadCount = userPhotos.length;
+      badge.textContent = uploadCount > 0 ? `${count} photos loaded · ${uploadCount} uploaded` : `${count} photos loaded`;
+    }
+
+    // ===== Three.js setup =====
+    const canvas = document.getElementById("three-canvas");
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0e0e0e, 18, 40);
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 18);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance"
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.setClearColor(0x0e0e0e, 0);
+
+    const sphereGroup = new THREE.Group();
+    scene.add(sphereGroup);
+
+    const lighting = {
+      ambient: new THREE.AmbientLight(0xffffff, 0.95),
+      key: new THREE.PointLight(0x8ff5ff, 1.9, 80),
+      fill: new THREE.PointLight(0xac8aff, 1.3, 80),
+    };
+    lighting.key.position.set(8, 6, 14);
+    lighting.fill.position.set(-9, -4, 8);
+    scene.add(lighting.ambient, lighting.key, lighting.fill);
+
+    const starField = new THREE.BufferGeometry();
+    const starCount = 1400;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      positions[i * 3 + 0] = (Math.random() - 0.5) * 120;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 120;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 120;
+    }
+    starField.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const stars = new THREE.Points(
+      starField,
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.055,
+        transparent: true,
+        opacity: 0.55
+      })
+    );
+    scene.add(stars);
+
+    // ===== Texture loader / photo sphere builder =====
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.crossOrigin = "anonymous";
+
+    const tempVec = new THREE.Vector3();
+
+    function buildSphere() {
+      while (sphereGroup.children.length) {
+        const child = sphereGroup.children.pop();
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
+        }
+      }
+
+      const items = photoData;
+      const n = items.length;
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+      items.forEach((item, i) => {
+        const y = 1 - (i / Math.max(n - 1, 1)) * 2;
+        const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y));
+        const theta = goldenAngle * i;
+        const x = Math.cos(theta) * radiusAtY;
+        const z = Math.sin(theta) * radiusAtY;
+
+        const px = x * CONFIG.sphereRadius;
+        const py = y * CONFIG.sphereRadius;
+        const pz = z * CONFIG.sphereRadius;
+
+        const aspect = item.aspect || 1;
+        const width = 1.55 + (i % 4) * 0.16;
+        const height = width / clamp(aspect, 0.7, 1.7);
+
+        const geometry = new THREE.PlaneGeometry(width, height, 1, 1);
+        const texture = textureLoader.load(item.src);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
+          opacity: 0.96
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(px, py, pz);
+
+        // Face outward from the center while still feeling embedded in the sphere.
+        const outwardTarget = new THREE.Vector3(px * 2, py * 2, pz * 2);
+        mesh.lookAt(outwardTarget);
+
+        mesh.userData = {
+          baseScale: 1,
+          px, py, pz,
+          home: new THREE.Vector3(px, py, pz)
+        };
+
+        sphereGroup.add(mesh);
+      });
+
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 32, 32),
+        new THREE.MeshBasicMaterial({
+          color: 0x8ff5ff,
+          transparent: true,
+          opacity: 0.12
+        })
+      );
+      core.position.set(0, 0, 0);
+      sphereGroup.add(core);
+
+      syncPhotoBadge();
+    }
+
+    buildSphere();
+    syncPhotoBadge();
+
+    // ===== Particles / dust canvas =====
+    (function initParticles() {
+      const pCanvas = document.getElementById("particle-canvas");
+      const ctx = pCanvas.getContext("2d");
+
+      function resize() {
+        pCanvas.width = window.innerWidth * Math.min(window.devicePixelRatio, 2);
+        pCanvas.height = window.innerHeight * Math.min(window.devicePixelRatio, 2);
+        ctx.setTransform(Math.min(window.devicePixelRatio, 2), 0, 0, Math.min(window.devicePixelRatio, 2), 0, 0);
+      }
+      resize();
+      window.addEventListener("resize", resize);
+
+      const particles = Array.from({ length: 80 }, () => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 1.6 + 0.3,
+        vx: (Math.random() - 0.5) * 0.14,
+        vy: (Math.random() - 0.5) * 0.14,
+        alpha: Math.random() * 0.32 + 0.04,
+        hue: Math.random() > 0.6 ? 190 : 270
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        particles.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.alpha})`;
+          ctx.fill();
+
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = window.innerWidth;
+          if (p.x > window.innerWidth) p.x = 0;
+          if (p.y < 0) p.y = window.innerHeight;
+          if (p.y > window.innerHeight) p.y = 0;
+        });
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    // ===== Camera / MediaPipe =====
+    const webcam = document.getElementById("webcam");
+    const camCanvas = document.getElementById("cam-canvas");
+    const camCtx = camCanvas.getContext("2d");
+    const trackingCanvas = document.getElementById("tracking-canvas");
+    const trackCtx = trackingCanvas.getContext("2d");
+
+    let hands = null;
+    let mediaCamera = null;
+    let handStates = {
+      left: { pinch: false, openScore: 0, fistScore: 1, center: null, prevCenter: null, pinchDist: 0 },
+      right: { pinch: false, openScore: 0, fistScore: 1, center: null, prevCenter: null, pinchDist: 0 }
+    };
+
+    function resizeCameraLayers() {
+      const w = camCanvas.clientWidth;
+      const h = camCanvas.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio, 2);
+
+      camCanvas.width = w * dpr;
+      camCanvas.height = h * dpr;
+      trackCanvas.width = w * dpr;
+      trackCanvas.height = h * dpr;
+
+      camCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      trackCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    const ro = new ResizeObserver(resizeCameraLayers);
+    ro.observe(camCanvas);
+    window.addEventListener("resize", resizeCameraLayers);
+    resizeCameraLayers();
+
+    function drawCameraPanel(t = 0) {
+      const w = camCanvas.clientWidth;
+      const h = camCanvas.clientHeight;
+      camCtx.clearRect(0, 0, w, h);
+
+      if (webcam.readyState >= 2) {
+        camCtx.save();
+        camCtx.translate(w, 0);
+        camCtx.scale(-1, 1);
+        camCtx.drawImage(webcam, 0, 0, w, h);
+        camCtx.restore();
+      } else {
+        const g = camCtx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, "#071015");
+        g.addColorStop(1, "#11141a");
+        camCtx.fillStyle = g;
+        camCtx.fillRect(0, 0, w, h);
+      }
+
+      camCtx.fillStyle = "rgba(143,245,255,0.05)";
+      camCtx.fillRect(0, 0, w, h);
+
+      const scanY = (t * 0.04) % h;
+      const gradient = camCtx.createLinearGradient(0, scanY - 6, 0, scanY + 6);
+      gradient.addColorStop(0, "transparent");
+      gradient.addColorStop(0.5, "rgba(143,245,255,0.09)");
+      gradient.addColorStop(1, "transparent");
+      camCtx.fillStyle = gradient;
+      camCtx.fillRect(0, scanY - 6, w, 12);
+
+      requestAnimationFrame(drawCameraPanel);
+    }
+    drawCameraPanel();
+
+    function drawTrackingOverlay(results) {
+      const w = trackingCanvas.clientWidth;
+      const h = trackingCanvas.clientHeight;
+      trackCtx.clearRect(0, 0, w, h);
+
+      if (!results || !results.multiHandLandmarks) return;
+
+      for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+        const landmarks = results.multiHandLandmarks[i];
+        const handedness = results.multiHandedness[i]?.label || "Unknown";
+        const hue = handedness === "Left" ? 272 : 190;
+
+        // Connectors
+        const pairs = [
+          [0,1],[1,2],[2,3],[3,4],
+          [0,5],[5,6],[6,7],[7,8],
+          [5,9],[9,10],[10,11],[11,12],
+          [9,13],[13,14],[14,15],[15,16],
+          [13,17],[17,18],[18,19],[19,20],
+          [0,17]
+        ];
+
+        trackCtx.strokeStyle = `hsla(${hue}, 90%, 70%, 0.22)`;
+        trackCtx.lineWidth = 1;
+
+        pairs.forEach(([a, b]) => {
+          const p1 = landmarks[a];
+          const p2 = landmarks[b];
+          trackCtx.beginPath();
+          trackCtx.moveTo((1 - p1.x) * w, p1.y * h);
+          trackCtx.lineTo((1 - p2.x) * w, p2.y * h);
+          trackCtx.stroke();
+        });
+
+        landmarks.forEach((lm, idx) => {
+          const x = (1 - lm.x) * w;
+          const y = lm.y * h;
+          trackCtx.beginPath();
+          trackCtx.arc(x, y, idx === 8 || idx === 4 ? 2.2 : 1.4, 0, Math.PI * 2);
+          trackCtx.fillStyle = `hsla(${hue}, 90%, 75%, ${idx === 8 || idx === 4 ? 0.95 : 0.7})`;
+          trackCtx.fill();
+        });
+
+        // Bounding text
+        const xs = landmarks.map(l => (1 - l.x) * w);
+        const ys = landmarks.map(l => l.y * h);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        trackCtx.strokeStyle = `hsla(${hue}, 90%, 70%, 0.24)`;
+        trackCtx.strokeRect(minX - 6, minY - 6, (maxX - minX) + 12, (maxY - minY) + 12);
+
+        trackCtx.fillStyle = `hsla(${hue}, 90%, 70%, 0.55)`;
+        trackCtx.font = "6px Space Grotesk, sans-serif";
+        trackCtx.fillText(handedness.toUpperCase(), minX - 2, minY - 10);
+      }
+    }
+
+    function updateHandState(results) {
+      handStates.left = { pinch: false, openScore: 0, fistScore: 1, center: null, prevCenter: handStates.left.center, pinchDist: 0 };
+      handStates.right = { pinch: false, openScore: 0, fistScore: 1, center: null, prevCenter: handStates.right.center, pinchDist: 0 };
+
+      if (!results || !results.multiHandLandmarks) return;
+
+      for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+        const lm = results.multiHandLandmarks[i];
+        const label = (results.multiHandedness[i]?.label || "").toLowerCase();
+
+        const wrist = lm[0];
+        const thumb = lm[4];
+        const index = lm[8];
+        const middle = lm[12];
+        const ring = lm[16];
+        const pinky = lm[20];
+        const mcp = lm[9];
+
+        const palm = Math.max(0.001, dist(wrist, mcp));
+        const pinchDist = dist(thumb, index) / palm;
+        const openScore = ((dist(index, wrist) + dist(middle, wrist) + dist(ring, wrist) + dist(pinky, wrist)) / 4) / palm;
+        const fistScore = 1 / Math.max(openScore, 0.1);
+
+        const center = {
+          x: (thumb.x + index.x + middle.x + ring.x + pinky.x) / 5,
+          y: (thumb.y + index.y + middle.y + ring.y + pinky.y) / 5
+        };
+
+        if (label === "left") {
+          handStates.left = {
+            pinch: pinchDist < 0.38,
+            openScore,
+            fistScore,
+            center,
+            prevCenter: handStates.left.center,
+            pinchDist
+          };
+        } else if (label === "right") {
+          handStates.right = {
+            pinch: pinchDist < 0.38,
+            openScore,
+            fistScore,
+            center,
+            prevCenter: handStates.right.center,
+            pinchDist
+          };
+        }
+      }
+    }
+
+    function mapGestureToScene() {
+      const left = handStates.left;
+      const right = handStates.right;
+
+      const hasHands = left.center || right.center;
+
+      if (left.pinch && left.center && left.prevCenter) {
+        const dx = left.center.x - left.prevCenter.x;
+        const dy = left.center.y - left.prevCenter.y;
+        state.rotY += dx * 5.3;
+        state.rotX += dy * 4.2;
+        state.rotX = clamp(state.rotX, -1.42, 1.22);
+        state.velY = dx * 0.02;
+      }
+
+      if (right.pinch) {
+        const mapped = 1.78 - right.pinchDist * 1.6;
+        state.targetZoom = clamp(mapped, CONFIG.zoomMin, CONFIG.zoomMax);
+      }
+
+      if (hasHands) {
+        const openness = Math.max(left.openScore || 0, right.openScore || 0);
+        const closedness = Math.min(left.fistScore || 1, right.fistScore || 1);
+
+        if (openness > 1.18) {
+          state.targetVelY = CONFIG.fastSpeed;
+          state.fast = true;
+          state.paused = false;
+        } else if (closedness > 2.0) {
+          state.targetVelY = 0;
+          state.fast = false;
+          state.paused = true;
+        } else {
+          state.targetVelY = CONFIG.baseSpeed;
+          state.fast = false;
+          state.paused = false;
+        }
+      }
+
+      document.getElementById("pause-vignette").classList.toggle("active", state.paused);
+      updateSidebarActive(state.fast ? "speed" : (state.paused ? "rotate" : "zoom"));
+    }
+
+    async function initMediaPipe() {
+      if (state.started) return;
+      state.started = true;
+
+      hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 1,
+        selfieMode: true,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+      });
+
+      hands.onResults((results) => {
+        updateHandState(results);
+        drawTrackingOverlay(results);
+      });
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+
+        webcam.srcObject = stream;
+        await webcam.play();
+
+        mediaCamera = new Camera(webcam, {
+          onFrame: async () => {
+            if (hands && webcam.readyState >= 2) {
+              await hands.send({ image: webcam });
+            }
+          },
+          width: 1280,
+          height: 720
+        });
+        mediaCamera.start();
+
+        document.getElementById("start-overlay").style.display = "none";
+      } catch (err) {
+        console.error(err);
+        document.getElementById("start-overlay").querySelector("p").textContent =
+          "Camera permission was blocked. You can still use mouse, touch, and upload your photos.";
+      }
+    }
+
+    // ===== Sidebar controls =====
+    function updateSidebarActive(mode) {
+      document.querySelectorAll(".icon-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === mode);
+        btn.classList.toggle("opacity-50", btn.dataset.mode !== mode);
+        btn.classList.toggle("opacity-100", btn.dataset.mode === mode);
+      });
+    }
+
+    document.querySelectorAll(".icon-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const mode = btn.dataset.mode;
+        if (mode === "speed") {
+          state.fast = !state.fast;
+          state.targetVelY = state.fast ? CONFIG.fastSpeed : CONFIG.baseSpeed;
+        } else if (mode === "rotate") {
+          state.paused = !state.paused;
+          document.getElementById("pause-vignette").classList.toggle("active", state.paused);
+        }
+        updateSidebarActive(mode);
+      });
+    });
+
+    document.getElementById("pause-btn-right").addEventListener("click", () => {
+      state.paused = !state.paused;
+      document.getElementById("pause-vignette").classList.toggle("active", state.paused);
+    });
+
+    // ===== Upload photos =====
+    async function handleUploads(files) {
+      const incoming = Array.from(files || []).filter(Boolean);
+      if (!incoming.length) return;
+
+      const prepared = await Promise.all(incoming.map(async (file) => {
+        const url = URL.createObjectURL(file);
+        const meta = await measureFileAspect(file);
+        return {
+          src: url,
+          title: file.name,
+          kind: "user",
+          aspect: meta.aspect || 1
+        };
+      }));
+
+      userPhotos.push(...prepared);
+
+      // Keep demo images as the base visual layer, then stack uploads on top so the sphere stays full.
+      photoData = [...userPhotos, ...makeDemoPhotos(Math.max(10, 14 - userPhotos.length))].slice(0, 80);
+      buildSphere();
+    }
+
+    document.getElementById("photo-upload").addEventListener("change", (e) => handleUploads(e.target.files));
+    document.getElementById("photo-upload-footer").addEventListener("change", (e) => handleUploads(e.target.files));
+
+    // ===== Input controls (mouse / touch / wheel) =====
+    const stage = document.getElementById("sphere-stage");
+
+    stage.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".photo-tile")) return;
+      state.dragging = true;
+      state.lastMouseX = e.clientX;
+      state.lastMouseY = e.clientY;
+      const hint = document.getElementById("drag-hint");
+      if (hint) {
+        hint.style.transition = "opacity 0.6s";
+        hint.style.opacity = "0";
+        setTimeout(() => hint.remove(), 700);
+      }
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!state.dragging) return;
+      const dx = e.clientX - state.lastMouseX;
+      const dy = e.clientY - state.lastMouseY;
+      state.rotY += dx * 0.008;
+      state.rotX += dy * 0.006;
+      state.rotX = clamp(state.rotX, -1.42, 1.22);
+      state.velY = dx * 0.008;
+      state.lastMouseX = e.clientX;
+      state.lastMouseY = e.clientY;
+    });
+
+    window.addEventListener("mouseup", () => {
+      state.dragging = false;
+    });
+
+    let touchPrev = null;
+    stage.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) {
+        touchPrev = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        state.dragging = true;
+      }
+    }, { passive: true });
+
+    stage.addEventListener("touchmove", (e) => {
+      if (!touchPrev || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - touchPrev.x;
+      const dy = e.touches[0].clientY - touchPrev.y;
+      state.rotY += dx * 0.008;
+      state.rotX += dy * 0.006;
+      state.rotX = clamp(state.rotX, -1.42, 1.22);
+      state.velY = dx * 0.008;
+      touchPrev = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, { passive: true });
+
+    stage.addEventListener("touchend", () => {
+      state.dragging = false;
+      touchPrev = null;
+    });
+
+    window.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const dir = e.deltaY > 0 ? -1 : 1;
+      state.targetZoom = clamp(state.targetZoom + dir * CONFIG.zoomStep, CONFIG.zoomMin, CONFIG.zoomMax);
+    }, { passive: false });
+
+    const keys = {};
+    window.addEventListener("keydown", (e) => {
+      keys[e.code] = true;
+      if (e.code === "Space") {
+        e.preventDefault();
+        state.paused = !state.paused;
+        document.getElementById("pause-vignette").classList.toggle("active", state.paused);
+      }
+    });
+    window.addEventListener("keyup", (e) => { keys[e.code] = false; });
+
+    // ===== Sphere animation =====
+    function updateTileDepth() {
+      sphereGroup.children.forEach((child) => {
+        if (!child.isMesh || !child.userData || !child.userData.home) return;
+
+        child.getWorldPosition(tempVec);
+        const z = tempVec.z;
+        const depth = THREE.MathUtils.clamp((z + 8) / 16, 0, 1);
+
+        // Cinematic depth response: farther tiles become dimmer, smaller, and softer.
+        child.material.opacity = lerp(0.30, 0.98, depth);
+        const scale = lerp(0.88, 1.06, depth);
+        child.scale.setScalar(scale);
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const keyboardFast = !!keys["ShiftLeft"] || !!keys["ShiftRight"];
+      if (keyboardFast) {
+        state.targetVelY = CONFIG.fastSpeed;
+        state.fast = true;
+      } else {
+        if (!state.paused) {
+          state.targetVelY = state.fast ? CONFIG.fastSpeed : CONFIG.baseSpeed;
+        }
+      }
+
+      if (!state.paused && !state.dragging) {
+        state.velY = lerp(state.velY, state.targetVelY, 0.05);
+        state.rotY += state.velY;
+        state.rotX = lerp(state.rotX, 0.12, 0.012);
+      } else if (!state.dragging) {
+        state.velY *= 0.94;
+        state.rotY += state.velY;
+      }
+
+      state.zoom = lerp(state.zoom, state.targetZoom, 0.075);
+
+      sphereGroup.rotation.x = state.rotX;
+      sphereGroup.rotation.y = state.rotY;
+      sphereGroup.scale.setScalar(state.zoom);
+
+      updateTileDepth();
+
+      stars.rotation.y += 0.00055;
+      stars.rotation.x += 0.00018;
+
+      renderer.render(scene, camera);
+      mapCameraFeedToState();
+    }
+    animate();
+
+    function mapCameraFeedToState() {
+      // currently no-op for frame updates; gesture mapping happens when MediaPipe results arrive
+      // This call keeps the control model easy to extend.
+      mapGestureToScene();
+    }
+
+    // ===== Webcam preview + latency =====
+    function drawLatency() {
+      const el = document.getElementById("latency-num");
+      let base = 14;
+      setInterval(() => {
+        const jitter = Math.round((Math.random() - 0.5) * 4);
+        base = Math.max(12, Math.min(20, base + jitter));
+        el.textContent = base;
+      }, 1450 + Math.random() * 700);
+    }
+    drawLatency();
+
+    // ===== Start button / camera launch =====
+    document.getElementById("btn-start").addEventListener("click", initMediaPipe);
+    document.getElementById("btn-camera").addEventListener("click", initMediaPipe);
+
+    // ===== Responsive =====
+    window.addEventListener("resize", () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    });
+
+    // Initial camera panel placeholder animation (before permission)
+    const camSeed = document.createElement("div");
+    camSeed.style.position = "absolute";
+    camSeed.style.inset = "0";
+    camSeed.style.pointerEvents = "none";
+    camSeed.style.background = "radial-gradient(circle at 50% 36%, rgba(143,245,255,0.08), transparent 44%), linear-gradient(135deg, rgba(7,10,15,0.95), rgba(18,20,28,0.95))";
+    camSeed.style.mixBlendMode = "screen";
+    camCanvas.parentElement.appendChild(camSeed);
+  </script>
+</body>
+</html>
